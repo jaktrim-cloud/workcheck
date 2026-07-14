@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบติดตามผลการเรียน</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap');
+
+  :root{
+    --blue-deep:#0d5c94;
+    --blue:#1279c6;
+    --blue-light:#e8f2fb;
+    --gray-border:#dfe4ea;
+    --gray-text:#6b7684;
+    --white:#ffffff;
+    --bg:#eef1f5;
+    --card-bg:#ffffff;
+    --text-main:#1a2733;
+    --sidebar-bg:#0d3a5c;
+    --sidebar-text:#cfe3f4;
+  }
+  html.dark{
+    --bg:#101820; --card-bg:#182430; --text-main:#e7edf3; --gray-border:#2b3846;
+    --gray-text:#8a97a5; --blue-light:#123049; --sidebar-bg:#0a1723; --sidebar-text:#9fb7cb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);font-family:'Prompt',sans-serif;color:var(--text-main);transition:background .2s ease,color .2s ease;}
+  button,input,select,textarea{font-family:inherit;}
+
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{width:100%;max-width:460px;background:var(--card-bg);border-radius:20px;border-top:5px solid var(--blue-deep);
+    box-shadow:0 10px 30px rgba(13,92,148,0.12);padding:40px 36px 34px;position:relative;}
+  .card h1{text-align:center;font-size:24px;font-weight:700;margin:0 0 6px;}
+  .subtitle{text-align:center;color:var(--gray-text);font-size:14px;margin:0 0 26px;}
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px;}
+  .tab{border:1.5px solid var(--gray-border);background:var(--card-bg);color:var(--gray-text);border-radius:10px;padding:12px 6px;
+    font-size:13.5px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .18s ease;}
+  .tab .emoji{font-size:18px;}
+  .tab:hover{border-color:var(--blue);}
+  .tab.active{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 14px rgba(18,121,198,0.28);}
+  .field{margin-bottom:14px;}
+  .field input,.field select,.field textarea{width:100%;padding:13px 15px;border:1.5px solid var(--gray-border);border-radius:10px;
+    font-size:14px;color:var(--text-main);background:var(--bg);outline:none;transition:border-color .15s ease;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);}
+  .field label{display:block;font-size:12.5px;color:var(--gray-text);margin-bottom:5px;font-weight:500;}
+  .pw-wrap{position:relative;}
+  .pw-toggle{position:absolute;right:14px;top:14px;background:none;border:none;cursor:pointer;font-size:16px;color:var(--gray-text);}
+  .submit{width:100%;margin-top:8px;padding:15px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--blue),var(--blue-deep));
+    color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px rgba(18,121,198,0.28);}
+  .submit:hover{filter:brightness(1.05);}
+  .hint{text-align:center;font-size:11.5px;color:var(--gray-text);margin-top:16px;}
+  .role-note{font-size:12.5px;color:var(--blue-deep);background:var(--blue-light);border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:16px;font-weight:500;}
+  .error-msg{display:none;font-size:12.5px;color:#b3261e;background:#fdecea;border:1px solid #f6cdc9;border-radius:8px;padding:9px 12px;text-align:center;margin-bottom:14px;font-weight:500;}
+  .error-msg.show{display:block;}
+  .input-error{border-color:#e0554b !important;}
+
+  #appScreen{display:none;min-height:100vh;}
+  #appScreen.show{display:flex;}
+  .sidebar{width:260px;flex-shrink:0;background:var(--sidebar-bg);color:var(--sidebar-text);padding:22px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .sidebar .brand{color:#fff;font-weight:700;font-size:15.5px;padding:0 8px 20px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:14px;}
+  .sidebar .brand small{display:block;font-weight:400;font-size:11.5px;color:var(--sidebar-text);margin-top:4px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:500;margin-bottom:3px;transition:background .15s ease;}
+  .nav-item:hover{background:rgba(255,255,255,0.08);}
+  .nav-item.active{background:var(--blue);color:#fff;}
+  .nav-group-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,0.35);margin:16px 10px 6px;}
+
+  .main-wrap{flex:1;min-width:0;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 26px;background:var(--card-bg);border-bottom:1px solid var(--gray-border);position:sticky;top:0;z-index:5;}
+  .topbar .datetime{font-size:12.5px;color:var(--gray-text);}
+  .topbar .user-box{display:flex;align-items:center;gap:12px;}
+  .topbar .user-chip{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;}
+  .icon-btn{background:none;border:1.5px solid var(--gray-border);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--text-main);}
+  .icon-btn:hover{border-color:var(--blue);}
+  .content{padding:26px;max-width:1200px;margin:0 auto;}
+  .view{display:none;}
+  .view.show{display:block;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .page-title{font-size:20px;font-weight:700;margin:0 0 4px;}
+  .page-sub{font-size:13px;color:var(--gray-text);margin:0 0 20px;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;}
+  .stat-card{background:var(--card-bg);border:1px solid var(--gray-border);border-radius:14px;padding:18px;}
+  .stat-card .num{font-size:24px;font-weight:700;color:var(--blue-deep);}
+  .stat-card .lbl{font-size:12px;color:var(--gray-text);margin-top:4px;}
+
+  .panel{background:var(--card-bg);border:1px solid var(--gray-border);border-radius:16px;padding:20px;margin-bottom:20px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .panel-head h3{margin:0;font-size:15.5px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .toolbar input,.toolbar select{padding:9px 12px;border:1.5px solid var(--gray-border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text-main);}
+
+  .btn{border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-primary:hover{background:var(--blue-deep);}
+  .btn-ghost{background:transparent;border:1.5px solid var(--gray-border);color:var(--text-main);}
+  .btn-ghost:hover{border-color:var(--blue);}
+  .btn-danger{background:#fdecea;color:#b3261e;}
+  .btn-success{background:#e5f7ec;color:#1b8a4c;}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:7px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-text);padding:10px 12px;border-bottom:2px solid var(--gray-border);}
+  tbody td{padding:11px 12px;border-bottom:1px solid var(--gray-border);}
+  tbody tr:hover{background:var(--blue-light);}
+  .table-wrap{overflow-x:auto;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .badge-green{background:#e5f7ec;color:#1b8a4c;}
+  .badge-red{background:#fdecea;color:#b3261e;}
+  .badge-gray{background:var(--gray-border);color:var(--gray-text);}
+  .badge-blue{background:var(--blue-light);color:var(--blue-deep);}
+  .empty-row{text-align:center;color:var(--gray-text);padding:30px !important;}
+
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12.5px;}
+  .bar-row .lbl{width:120px;flex-shrink:0;color:var(--gray-text);}
+  .bar-track{flex:1;background:var(--gray-border);border-radius:6px;height:14px;overflow:hidden;}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--blue-deep));border-radius:6px;}
+  .bar-val{width:34px;text-align:right;font-weight:600;}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,0.5);align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--card-bg);border-radius:16px;padding:26px;width:100%;max-width:440px;box-shadow:0 20px 40px rgba(0,0,0,0.25);max-height:90vh;overflow-y:auto;}
+  .modal.modal-wide{max-width:560px;}
+  .modal h3{margin:0 0 4px;font-size:16.5px;}
+  .modal .modal-sub{margin:0 0 18px;font-size:12.5px;color:var(--gray-text);}
+  .modal-actions{display:flex;gap:10px;margin-top:18px;}
+  .modal-actions button{flex:1;}
+
+  .checklist{max-height:190px;overflow-y:auto;border:1.5px solid var(--gray-border);border-radius:10px;padding:8px 10px;background:var(--bg);}
+  .checklist label{display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;cursor:pointer;}
+  .checklist label input{width:auto;flex-shrink:0;}
+  .checklist .empty{color:var(--gray-text);font-size:12.5px;padding:6px 4px;}
+
+  .review-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-bottom:1px solid var(--gray-border);flex-wrap:wrap;}
+  .review-row:last-child{border-bottom:none;}
+  .review-row .who{font-size:13px;}
+  .review-row .who .sub{display:block;font-size:11.5px;color:var(--gray-text);}
+  .review-actions{display:flex;gap:6px;}
+
+  .toast-wrap{position:fixed;top:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--card-bg);border:1px solid var(--gray-border);border-left:4px solid var(--blue);border-radius:10px;padding:12px 16px;
+    font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,0.12);min-width:220px;animation:slideIn .2s ease;}
+  .toast.success{border-left-color:#1b8a4c;}
+  .toast.error{border-left-color:#b3261e;}
+  @keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+  .help-block{margin-bottom:16px;}
+  .help-block h4{margin:0 0 6px;font-size:14px;color:var(--blue-deep);}
+  .help-block p{margin:0;font-size:13px;color:var(--gray-text);line-height:1.6;}
+
+  @media(max-width:860px){
+    #appScreen.show{flex-direction:column;}
+    .sidebar{width:100%;height:auto;position:relative;display:flex;flex-wrap:wrap;gap:4px;padding:14px;}
+    .sidebar .brand{width:100%;border-bottom:none;padding-bottom:6px;margin-bottom:6px;}
+    .nav-group-label{display:none;}
+    .nav-item{padding:8px 10px;}
+    .content{padding:16px;}
+    .bar-row .lbl{width:80px;}
+  }
+  @media print{
+    #loginScreen,.sidebar,.topbar,.toolbar,.btn,.no-print{display:none !important;}
+    .content{padding:0;max-width:100%;}
+    body{background:#fff;color:#000;}
+    .panel{border:none;box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="card">
+    <h1>ระบบติดตามผลการเรียน</h1>
+    <p class="subtitle">โรงเรียนอัสสัมชัญสมุทรปราการ</p>
+    <div class="tabs">
+      <button class="tab active" data-role="student" data-id="รหัสประจำตัวนักเรียน"><span class="emoji">🧑‍🎓</span> นักเรียน</button>
+      <button class="tab" data-role="teacher" data-id="รหัสประจำตัวครู"><span class="emoji">🧑‍🏫</span> ครูผู้สอน</button>
+      <button class="tab" data-role="admin" data-id="รหัสประจำตัวผู้ดูแลระบบ"><span class="emoji">🛡️</span> ผู้ดูแลระบบ</button>
+    </div>
+    <div class="role-note" id="roleNote">เข้าสู่ระบบในฐานะ นักเรียน</div>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="field"><input type="text" id="idInput" placeholder="รหัสประจำตัวนักเรียน" autocomplete="off"></div>
+    <div class="field pw-wrap">
+      <input type="password" id="pwInput" placeholder="รหัสผ่าน (เริ่มต้น 1234)">
+      <button class="pw-toggle" id="pwToggle" type="button">👁️</button>
+    </div>
+    <button class="submit" id="submitBtn">🚀 เข้าสู่ระบบ</button>
+    <p class="hint">ผู้ใช้ใหม่ทุกคนมีรหัสผ่านเริ่มต้น 1234</p>
+  </div>
+</div>
+
+<div id="appScreen">
+  <div class="sidebar" id="sidebarNav"></div>
+  <div class="main-wrap">
+    <div class="topbar">
+      <div class="datetime" id="topDatetime"></div>
+      <div class="user-box">
+        <button class="icon-btn" id="darkToggle" title="Dark mode">🌙</button>
+        <div class="user-chip"><span id="topUserEmoji">🛡️</span> <span id="topUserName">-</span></div>
+        <button class="icon-btn" id="changePwBtn" title="เปลี่ยนรหัสผ่าน">🔑</button>
+        <button class="icon-btn" id="logoutBtn" title="ออกจากระบบ">🚪</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <div class="view" id="view-dashboard">
+        <p class="page-title">Dashboard ภาพรวมระบบ</p>
+        <p class="page-sub">สรุปข้อมูลทั้งหมดในระบบ</p>
+        <div class="stat-grid" id="dashStats"></div>
+        <div class="panel"><div class="panel-head"><h3>งานค้างตามรายวิชา</h3></div><div id="chartBySubject"></div></div>
+        <div class="panel"><div class="panel-head"><h3>งานค้างตามห้องเรียน</h3></div><div id="chartByRoom"></div></div>
+      </div>
+
+      <div class="view" id="view-users">
+        <p class="page-title">จัดการผู้ใช้งาน</p>
+        <p class="page-sub">เพิ่ม แก้ไข ลบ และรีเซ็ตรหัสผ่านผู้ใช้ในระบบ</p>
+        <div class="panel">
+          <div class="panel-head">
+            <div class="toolbar">
+              <input type="text" id="userSearch" placeholder="ค้นหารหัส/ชื่อ...">
+              <select id="userRoleFilter">
+                <option value="">ทุกประเภท</option><option value="admin">ผู้ดูแลระบบ</option>
+                <option value="teacher">ครูผู้สอน</option><option value="student">นักเรียน</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="openUserModal()">+ เพิ่มผู้ใช้</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>เลขที่</th><th>รหัส</th><th>ชื่อ</th><th>ประเภท</th><th>ห้อง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-subjects">
+        <p class="page-title">จัดการรายวิชา</p>
+        <p class="page-sub">เพิ่มวิชา กำหนดครูผู้สอนและหัวหน้าวิชาได้มากกว่า 1 คน</p>
+        <div class="panel">
+          <div class="panel-head">
+            <div class="toolbar"><input type="text" id="subjectSearch" placeholder="ค้นหาชื่อวิชา..."></div>
+            <button class="btn btn-primary" onclick="openSubjectModal()">+ เพิ่มวิชา</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>ชื่อวิชา</th><th>ครูผู้สอน</th><th>หัวหน้าวิชา</th><th>ห้อง</th><th>ภาค/ปี</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+            <tbody id="subjectsTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-tasks">
+        <p class="page-title" id="tasksTitle">จัดการงานค้าง</p>
+        <p class="page-sub">มอบหมายงานค้าง เลือกนักเรียนที่เกี่ยวข้อง และตรวจสอบการส่งงาน</p>
+        <div class="panel">
+          <div class="panel-head">
+            <div class="toolbar"><select id="taskSubjectFilter"><option value="">ทุกวิชา</option></select></div>
+            <button class="btn btn-primary" onclick="openTaskModal()">+ มอบงานค้าง</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>วิชา</th><th>ห้อง</th><th>ชื่องาน</th><th>วันกำหนดส่ง</th><th>นักเรียนที่เกี่ยวข้อง</th><th>ส่งแล้ว/ทั้งหมด</th><th>จัดการ</th></tr></thead>
+            <tbody id="tasksTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-tracking">
+        <p class="page-title">ติดตามงานค้าง</p>
+        <p class="page-sub">ภาพรวมงานทั้งหมด งานค้าง งานที่รอตรวจสอบ และงานที่ส่งแล้ว</p>
+        <div class="stat-grid" id="trackingStats"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <div class="toolbar">
+              <select id="trackSubjectFilter"><option value="">ทุกวิชา</option></select>
+              <input type="text" id="trackRoomFilter" placeholder="กรองตามห้อง">
+            </div>
+            <div class="toolbar">
+              <button class="btn btn-ghost btn-sm" onclick="printCurrentTable('trackingTable','รายงานงานค้าง')">🖨️ พิมพ์/PDF</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCurrentTable('trackingTable','tracking_report')">📊 Excel</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table id="trackingTable">
+            <thead><tr><th>เลขที่</th><th>รหัสนักเรียน</th><th>ชื่อ</th><th>ห้อง</th><th>วิชา</th><th>ชื่องาน</th><th>วันกำหนดส่ง</th><th>ค้าง (วัน)</th><th>สถานะ</th></tr></thead>
+            <tbody id="trackingTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-search">
+        <p class="page-title">ค้นหา</p>
+        <p class="page-sub">ค้นหาเลขที่ รหัสนักเรียน ชื่อ ห้อง วิชา ครูผู้สอน หัวหน้าวิชา หรือชื่องาน</p>
+        <div class="panel">
+          <div class="toolbar" style="margin-bottom:16px;"><input type="text" id="globalSearch" placeholder="พิมพ์คำค้นหา..." style="flex:1;min-width:240px;"></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>เลขที่</th><th>รหัสนักเรียน</th><th>ชื่อ</th><th>ห้อง</th><th>วิชา</th><th>ครูผู้สอน</th><th>หัวหน้าวิชา</th><th>ชื่องาน</th><th>สถานะ</th></tr></thead>
+            <tbody id="searchTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-mytasks">
+        <p class="page-title">ระบบแก้ค้างงาน</p>
+        <p class="page-sub">รายการงานค้างของฉันและสถานะการส่งงาน</p>
+        <div class="panel">
+          <div class="table-wrap"><table>
+            <thead><tr><th>วิชา</th><th>ชื่องาน</th><th>รายละเอียด</th><th>วันกำหนดส่ง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+            <tbody id="myTasksTableBody"></tbody>
+          </table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>ประวัติการส่งงาน</h3></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>วิชา</th><th>ชื่องาน</th><th>วันที่ส่ง</th><th>สถานะ</th></tr></thead>
+            <tbody id="myHistoryTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-settings">
+        <p class="page-title">ตั้งค่าระบบ</p>
+        <div class="panel">
+          <div class="field"><label>ชื่อโรงเรียน</label><input type="text" id="settingsSchoolName"></div>
+          <button class="btn btn-primary" onclick="saveSchoolName()">บันทึก</button>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>สำรอง / กู้คืนข้อมูล</h3></div>
+          <div class="toolbar">
+            <button class="btn btn-ghost" onclick="backupData()">⬇️ สำรองข้อมูล (JSON)</button>
+            <label class="btn btn-ghost" style="cursor:pointer;">⬆️ นำเข้าข้อมูล (JSON)
+              <input type="file" id="restoreFile" accept="application/json" style="display:none;">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-help">
+        <p class="page-title">ช่วยเหลือการใช้งาน</p>
+        <div class="panel" id="helpContent"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pwModal"><div class="modal">
+  <h3>ต้องเปลี่ยนรหัสผ่านก่อนใช้งาน</h3>
+  <p class="modal-sub">บัญชีนี้ยังใช้รหัสผ่านเริ่มต้น (1234) กรุณาตั้งรหัสผ่านใหม่</p>
+  <div class="field"><input type="password" id="newPw" placeholder="รหัสผ่านใหม่"></div>
+  <div class="field"><input type="password" id="confirmPw" placeholder="ยืนยันรหัสผ่านใหม่"></div>
+  <div class="error-msg" id="modalError"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" id="modalCancel" type="button">ยกเลิก</button>
+    <button class="btn btn-primary" id="modalConfirm" type="button">บันทึกรหัสผ่าน</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="changePwModal"><div class="modal">
+  <h3>เปลี่ยนรหัสผ่าน</h3>
+  <div class="field"><input type="password" id="cpOld" placeholder="รหัสผ่านเดิม"></div>
+  <div class="field"><input type="password" id="cpNew" placeholder="รหัสผ่านใหม่"></div>
+  <div class="field"><input type="password" id="cpConfirm" placeholder="ยืนยันรหัสผ่านใหม่"></div>
+  <div class="error-msg" id="cpError"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('changePwModal')">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="submitChangePassword()">บันทึก</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="userModal"><div class="modal">
+  <h3 id="userModalTitle">เพิ่มผู้ใช้</h3>
+  <input type="hidden" id="userEditId">
+  <div class="field"><label>ประเภทผู้ใช้</label>
+    <select id="userForm_role" onchange="toggleRoomField()">
+      <option value="student">นักเรียน</option><option value="teacher">ครูผู้สอน</option><option value="admin">ผู้ดูแลระบบ</option>
+    </select>
+  </div>
+  <div class="field"><label>รหัสประจำตัว</label><input type="text" id="userForm_id"></div>
+  <div class="field"><label>ชื่อ-นามสกุล</label><input type="text" id="userForm_name"></div>
+  <div class="field" id="rollField"><label>เลขที่ (เฉพาะนักเรียน)</label><input type="number" id="userForm_roll" placeholder="เช่น 1"></div>
+  <div class="field" id="roomField"><label>ห้องเรียน</label><input type="text" id="userForm_room" placeholder="เช่น ม.3/1"></div>
+  <div class="error-msg" id="userModalError"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('userModal')">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="submitUserForm()">บันทึก</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="subjectModal"><div class="modal modal-wide">
+  <h3 id="subjectModalTitle">เพิ่มวิชา</h3>
+  <input type="hidden" id="subjectEditId">
+  <div class="field"><label>ชื่อวิชา</label><input type="text" id="subjectForm_name"></div>
+  <div class="field"><label>ห้องเรียน</label><input type="text" id="subjectForm_room" placeholder="เช่น ม.3/1"></div>
+  <div class="field"><label>ภาคเรียน / ปีการศึกษา</label><input type="text" id="subjectForm_term" placeholder="เช่น 1/2569"></div>
+  <div class="field"><label>ครูผู้สอน (ไม่บังคับ, เลือกได้มากกว่า 1 คน)</label><div class="checklist" id="subjectForm_teacherList"></div></div>
+  <div class="field"><label>หัวหน้าวิชา (เลือกได้มากกว่า 1 คน)</label><div class="checklist" id="subjectForm_headList"></div></div>
+  <div class="error-msg" id="subjectModalError"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('subjectModal')">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="submitSubjectForm()">บันทึก</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="taskModal"><div class="modal modal-wide">
+  <h3 id="taskModalTitle">มอบงานค้าง</h3>
+  <input type="hidden" id="taskEditId">
+  <div class="field"><label>วิชา</label><select id="taskForm_subject" onchange="renderTaskStudentChecklist()"></select></div>
+  <div class="field"><label>ชื่องาน</label><input type="text" id="taskForm_title"></div>
+  <div class="field"><label>รายละเอียด</label><textarea id="taskForm_details" rows="3"></textarea></div>
+  <div class="field"><label>วันกำหนดส่ง</label><input type="date" id="taskForm_due"></div>
+  <div class="field"><label>เลือกนักเรียน/ผู้ดูแลระบบที่เกี่ยวข้องกับงานนี้ (แสดงทุกคนในระบบ)</label>
+    <input type="text" id="taskForm_studentFilter" placeholder="พิมพ์เพื่อค้นหาชื่อ/ห้อง..." oninput="filterTaskStudentChecklist()" style="margin-bottom:8px;">
+    <div class="checklist" id="taskForm_studentList"></div></div>
+  <div class="error-msg" id="taskModalError"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('taskModal')">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="submitTaskForm()">บันทึก</button>
+  </div>
+</div></div>
+
+<div class="modal-overlay" id="reviewModal"><div class="modal modal-wide">
+  <h3 id="reviewModalTitle">ตรวจสอบการส่งงาน</h3>
+  <p class="modal-sub">กดยืนยันสถานะของนักเรียนแต่ละคนหลังตรวจสอบแล้ว</p>
+  <div id="reviewList"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('reviewModal')">ปิด</button></div>
+</div></div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ===================== DB LAYER ===================== */
+const KEYS = { users:'users', subjects:'subjects', tasks:'tasks', submissions:'submissions', settings:'settings' };
+function dbGet(key){ return JSON.parse(localStorage.getItem(key) || 'null'); }
+function dbSet(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+function seedIfEmpty(){
+  if(!dbGet(KEYS.users)){
+    dbSet(KEYS.users, [{ id:'22849', password:'Kk8099442', role:'admin', name:'ผู้ดูแลระบบเริ่มต้น', room:'', rollNumber:'', active:true, mustChangePassword:false }]);
+  }
+  if(!dbGet(KEYS.subjects)){
+    const defaultSubjectNames = ['Sci Fun','Sci Fun (Lab)','Scout (M)','Social MLP','Social Fun','Thai Fun','Eng Fun',
+      'Eng (Writing)','Intensive Math','Computer','Health','PE','Sci MLP','Eng MLP','History','Monfort Studies',
+      'Math Fun','Intensive Chem (Lab)','Music Fun','Arts/Career','Math MLP','Chinese','Guidance','Club (M)'];
+    dbSet(KEYS.subjects, defaultSubjectNames.map(n=>({id:uid('sub'),name:n,room:'M2/2',term:'1/2569',teacherIds:[],headIds:[],active:true})));
+  }
+  if(!dbGet(KEYS.tasks)) dbSet(KEYS.tasks, []);
+  if(!dbGet(KEYS.submissions)) dbSet(KEYS.submissions, []);
+  if(!dbGet(KEYS.settings)) dbSet(KEYS.settings, { darkMode:false, schoolName:'โรงเรียนอัสสัมชัญสมุทรปราการ' });
+}
+seedIfEmpty();
+
+const getUsers=()=>dbGet(KEYS.users)||[];
+const saveUsers=u=>dbSet(KEYS.users,u);
+const getSubjects=()=>dbGet(KEYS.subjects)||[];
+const saveSubjects=s=>dbSet(KEYS.subjects,s);
+const getTasks=()=>dbGet(KEYS.tasks)||[];
+const saveTasks=t=>dbSet(KEYS.tasks,t);
+const getSubmissions=()=>dbGet(KEYS.submissions)||[];
+const saveSubmissions=s=>dbSet(KEYS.submissions,s);
+const getSettings=()=>dbGet(KEYS.settings)||{darkMode:false,schoolName:'โรงเรียน'};
+const saveSettings=s=>dbSet(KEYS.settings,s);
+
+function uid(prefix){ return prefix+'_'+Math.random().toString(36).slice(2,9); }
+
+function byRoll(a,b){
+  const ra=(a.rollNumber!==undefined && a.rollNumber!=='' && a.rollNumber!==null)?Number(a.rollNumber):Infinity;
+  const rb=(b.rollNumber!==undefined && b.rollNumber!=='' && b.rollNumber!==null)?Number(b.rollNumber):Infinity;
+  if(ra!==rb) return ra-rb;
+  return (a.name||'').localeCompare(b.name||'','th');
+}
+
+/* ===================== TOAST ===================== */
+function toast(msg, type){
+  const wrap=document.getElementById('toastWrap');
+  const el=document.createElement('div');
+  el.className='toast '+(type||'');
+  el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3000);
+}
+
+/* ===================== DARK MODE ===================== */
+function applyDarkMode(){
+  const s=getSettings();
+  document.documentElement.classList.toggle('dark', !!s.darkMode);
+  document.getElementById('darkToggle').textContent = s.darkMode ? '☀️' : '🌙';
+}
+document.getElementById('darkToggle').addEventListener('click', ()=>{
+  const s=getSettings(); s.darkMode=!s.darkMode; saveSettings(s); applyDarkMode();
+});
+applyDarkMode();
+
+/* ===================== LOGIN ===================== */
+const tabs=document.querySelectorAll('.tab');
+const idInput=document.getElementById('idInput');
+const pwInput=document.getElementById('pwInput');
+const roleNote=document.getElementById('roleNote');
+const errorMsg=document.getElementById('errorMsg');
+const roleLabels={student:'นักเรียน',teacher:'ครูผู้สอน',admin:'ผู้ดูแลระบบ'};
+const roleEmojis={student:'🧑‍🎓',teacher:'🧑‍🏫',admin:'🛡️'};
+let currentRole='student';
+
+function clearLoginError(){
+  errorMsg.classList.remove('show'); errorMsg.textContent='';
+  idInput.classList.remove('input-error'); pwInput.classList.remove('input-error');
+}
+function showLoginError(msg){
+  errorMsg.textContent=msg; errorMsg.classList.add('show');
+  idInput.classList.add('input-error'); pwInput.classList.add('input-error');
+}
+tabs.forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active');
+    currentRole=tab.dataset.role; idInput.placeholder=tab.dataset.id;
+    roleNote.textContent='เข้าสู่ระบบในฐานะ '+roleLabels[currentRole];
+    clearLoginError();
+  });
+});
+document.getElementById('pwToggle').addEventListener('click', ()=>{
+  const isPw=pwInput.type==='password';
+  pwInput.type=isPw?'text':'password';
+  document.getElementById('pwToggle').textContent=isPw?'🙈':'👁️';
+});
+
+let pendingUser=null;
+document.getElementById('submitBtn').addEventListener('click', ()=>{
+  clearLoginError();
+  const id=idInput.value.trim(), pw=pwInput.value;
+  if(!id||!pw){ showLoginError('กรุณากรอกรหัสประจำตัวและรหัสผ่าน'); return; }
+  const user=getUsers().find(u=>u.id===id);
+  if(!user){ showLoginError('ไม่พบรหัสประจำตัวนี้ในระบบ'); return; }
+  if(user.role!==currentRole){ showLoginError('รหัสประจำตัวนี้ไม่ตรงกับประเภทผู้ใช้ที่เลือก ('+roleLabels[currentRole]+')'); return; }
+  if(user.active===false){ showLoginError('บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ'); return; }
+  if(user.password!==pw){ showLoginError('รหัสผ่านไม่ถูกต้อง'); return; }
+  if(user.mustChangePassword || pw==='1234'){
+    pendingUser=user;
+    document.getElementById('newPw').value=''; document.getElementById('confirmPw').value='';
+    document.getElementById('modalError').classList.remove('show');
+    openModal('pwModal');
+    return;
+  }
+  enterApp(user);
+});
+
+document.getElementById('modalCancel').addEventListener('click', ()=>{ closeModal('pwModal'); pendingUser=null; });
+document.getElementById('modalConfirm').addEventListener('click', ()=>{
+  const p1=document.getElementById('newPw').value, p2=document.getElementById('confirmPw').value;
+  const me=document.getElementById('modalError');
+  const fail=(m)=>{ me.textContent=m; me.classList.add('show'); };
+  if(!p1||!p2) return fail('กรุณากรอกรหัสผ่านใหม่ให้ครบ');
+  if(p1.length<4) return fail('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร');
+  if(p1==='1234') return fail('ห้ามตั้งรหัสผ่านเป็น 1234 ซ้ำ');
+  if(p1!==p2) return fail('รหัสผ่านใหม่ไม่ตรงกัน');
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===pendingUser.id);
+  users[idx].password=p1; users[idx].mustChangePassword=false; saveUsers(users);
+  closeModal('pwModal'); toast('เปลี่ยนรหัสผ่านสำเร็จ','success');
+  enterApp(users[idx]); pendingUser=null;
+});
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+/* ===================== APP STATE ===================== */
+let CURRENT_USER=null;
+
+function enterApp(user){
+  CURRENT_USER=user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').classList.add('show');
+  document.getElementById('topUserEmoji').textContent=roleEmojis[user.role];
+  document.getElementById('topUserName').textContent=user.name+' ('+user.id+')';
+  buildSidebar();
+  showView(defaultViewForRole(user.role));
+  updateClock(); setInterval(updateClock,1000);
+}
+function updateClock(){
+  document.getElementById('topDatetime').textContent=new Date().toLocaleString('th-TH',{dateStyle:'full',timeStyle:'short'});
+}
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  CURRENT_USER=null;
+  document.getElementById('appScreen').classList.remove('show');
+  document.getElementById('loginScreen').style.display='flex';
+  idInput.value=''; pwInput.value=''; clearLoginError();
+});
+document.getElementById('changePwBtn').addEventListener('click', ()=>{
+  document.getElementById('cpOld').value=''; document.getElementById('cpNew').value=''; document.getElementById('cpConfirm').value='';
+  document.getElementById('cpError').classList.remove('show');
+  openModal('changePwModal');
+});
+function submitChangePassword(){
+  const old=document.getElementById('cpOld').value, p1=document.getElementById('cpNew').value, p2=document.getElementById('cpConfirm').value;
+  const el=document.getElementById('cpError'); const fail=m=>{el.textContent=m; el.classList.add('show');};
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===CURRENT_USER.id);
+  if(users[idx].password!==old) return fail('รหัสผ่านเดิมไม่ถูกต้อง');
+  if(!p1||p1.length<4) return fail('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร');
+  if(p1!==p2) return fail('รหัสผ่านใหม่ไม่ตรงกัน');
+  users[idx].password=p1; users[idx].mustChangePassword=false; saveUsers(users);
+  CURRENT_USER=users[idx];
+  closeModal('changePwModal'); toast('เปลี่ยนรหัสผ่านสำเร็จ','success');
+}
+
+/* ===================== SIDEBAR / ROUTING ===================== */
+function isHead(userId){ return getSubjects().some(s=>(s.headIds||[]).includes(userId)); }
+function isAdminLike(role){ return role==='admin' || role==='teacher'; }
+function defaultViewForRole(role){
+  if(isAdminLike(role)) return 'dashboard';
+  return 'mytasks';
+}
+function navItem(view,label,emoji){
+  return '<div class="nav-item" data-view="'+view+'" onclick="showView(\''+view+'\')"><span>'+emoji+'</span><span>'+label+'</span></div>';
+}
+function buildSidebar(){
+  const role=CURRENT_USER.role;
+  let html='<div class="brand">📘 ระบบติดตามผลการเรียน<small>'+getSettings().schoolName+'</small></div>';
+  if(isAdminLike(role)){
+    html+='<div class="nav-group-label">ภาพรวม</div>'+navItem('dashboard','Dashboard','📊');
+    html+='<div class="nav-group-label">จัดการระบบ</div>';
+    html+=navItem('users','ผู้ใช้งาน','👥')+navItem('subjects','รายวิชา','📚');
+    html+=navItem('tasks','จัดการงานค้าง','📝');
+    html+=navItem('tracking','ติดตามงานค้าง','⏰')+navItem('search','ค้นหา','🔍');
+    if(role==='admin'){
+      html+='<div class="nav-group-label">งานของฉัน</div>'+navItem('mytasks','ระบบแก้ค้างงาน','📌');
+    }
+    html+='<div class="nav-group-label">ระบบ</div>'+navItem('settings','ตั้งค่าระบบ','⚙️')+navItem('help','ช่วยเหลือ','❓');
+  } else {
+    html+=navItem('mytasks','ระบบแก้ค้างงาน','📝');
+    if(isHead(CURRENT_USER.id)){
+      html+='<div class="nav-group-label">หัวหน้าวิชา</div>';
+      html+=navItem('tasks','จัดการงานค้าง (หัวหน้าวิชา)','🎖️');
+      html+=navItem('tracking','ติดตามงานค้าง','⏰')+navItem('search','ค้นหา','🔍');
+    }
+    html+=navItem('help','ช่วยเหลือ','❓');
+  }
+  document.getElementById('sidebarNav').innerHTML=html;
+}
+
+const ALL_VIEWS=['dashboard','users','subjects','tasks','tracking','search','mytasks','settings','help'];
+function showView(view){
+  ALL_VIEWS.forEach(v=>document.getElementById('view-'+v).classList.remove('show'));
+  document.getElementById('view-'+view).classList.add('show');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===view));
+  renderView(view);
+}
+function renderView(view){
+  if(view==='dashboard') renderDashboard();
+  if(view==='users') renderUsers();
+  if(view==='subjects') renderSubjects();
+  if(view==='tasks') renderTasks();
+  if(view==='tracking') renderTracking();
+  if(view==='search') renderSearch();
+  if(view==='mytasks') renderMyTasks();
+  if(view==='settings') renderSettings();
+  if(view==='help') renderHelp();
+}
+
+/* ===================== SCOPE HELPERS ===================== */
+function subjectsForCurrentUser(){
+  const role=CURRENT_USER.role;
+  const subs=getSubjects();
+  if(isAdminLike(role)) return subs;
+  return subs.filter(s=>(s.headIds||[]).includes(CURRENT_USER.id));
+}
+function tasksForSubjectIds(ids){ return getTasks().filter(t=>ids.includes(t.subjectId)); }
+function userName(id){ const u=getUsers().find(x=>x.id===id); return u?u.name:'-'; }
+function namesForIds(ids){ if(!ids||ids.length===0) return '-'; return ids.map(userName).join(', '); }
+function subjectById(id){ return getSubjects().find(s=>s.id===id); }
+/* Students AND admins in a room can be assigned overdue work; teachers are never assignable targets */
+function studentsInRoom(room){ return getUsers().filter(u=>(u.role==='student'||u.role==='admin')).sort(byRoll); }
+function getSubmission(taskId,studentId){ return getSubmissions().find(s=>s.taskId===taskId && s.studentId===studentId) || null; }
+function statusInfo(sub){
+  if(!sub) return {key:'pending_work', label:'ยังไม่ส่ง', badge:'badge-gray'};
+  if(sub.status==='pending_review') return {key:'pending_review', label:'รอตรวจสอบ', badge:'badge-blue'};
+  if(sub.status==='approved') return {key:'approved', label:'ส่งแล้ว', badge:'badge-green'};
+  if(sub.status==='rejected') return {key:'rejected', label:'ยังไม่ส่ง/ส่งไม่ผ่าน', badge:'badge-red'};
+  return {key:'pending_work', label:'ยังไม่ส่ง', badge:'badge-gray'};
+}
+
+/* ===================== DASHBOARD (admin) ===================== */
+function renderDashboard(){
+  const users=getUsers(), subs=getSubjects(), tasks=getTasks();
+  const students=users.filter(u=>u.role==='student');
+  const teachers=users.filter(u=>u.role==='teacher');
+  const admins=users.filter(u=>u.role==='admin');
+  const heads=[...new Set(subs.flatMap(s=>s.headIds||[]))];
+
+  let pendingCount=0, doneCount=0;
+  tasks.forEach(t=>{
+    (t.studentIds||[]).forEach(sid=>{
+      const info=statusInfo(getSubmission(t.id,sid));
+      info.key==='approved' ? doneCount++ : pendingCount++;
+    });
+  });
+
+  const stats=[
+    ['จำนวนผู้ใช้', users.length],['จำนวนวิชา', subs.length],['จำนวนงาน', tasks.length],
+    ['งานค้าง', pendingCount],['งานเสร็จแล้ว', doneCount],['หัวหน้าวิชา', heads.length],
+    ['ครูผู้สอน', teachers.length],['ผู้ดูแลระบบ', admins.length]
+  ];
+  document.getElementById('dashStats').innerHTML=stats.map(([lbl,num])=>
+    '<div class="stat-card"><div class="num">'+num+'</div><div class="lbl">'+lbl+'</div></div>').join('');
+
+  const bySubject={}, byRoom={};
+  tasks.forEach(t=>{
+    const sub=subjectById(t.subjectId);
+    const pend=(t.studentIds||[]).filter(sid=>statusInfo(getSubmission(t.id,sid)).key!=='approved').length;
+    const sName=sub?sub.name:'-'; const rName=sub?(sub.room||'-'):'-';
+    bySubject[sName]=(bySubject[sName]||0)+pend;
+    byRoom[rName]=(byRoom[rName]||0)+pend;
+  });
+  renderBarChart('chartBySubject', bySubject);
+  renderBarChart('chartByRoom', byRoom);
+}
+function renderBarChart(containerId, dataObj){
+  const el=document.getElementById(containerId);
+  const entries=Object.entries(dataObj);
+  if(entries.length===0){ el.innerHTML='<p style="color:var(--gray-text);font-size:13px;">ยังไม่มีข้อมูล</p>'; return; }
+  const max=Math.max(...entries.map(e=>e[1]),1);
+  el.innerHTML=entries.map(([k,v])=>
+    '<div class="bar-row"><div class="lbl">'+k+'</div><div class="bar-track"><div class="bar-fill" style="width:'+(v/max*100)+'%"></div></div><div class="bar-val">'+v+'</div></div>').join('');
+}
+
+/* ===================== USERS (admin) ===================== */
+function renderUsers(){
+  const search=(document.getElementById('userSearch').value||'').toLowerCase();
+  const roleFilter=document.getElementById('userRoleFilter').value;
+  let users=getUsers().filter(u=>
+    (u.id.toLowerCase().includes(search)||u.name.toLowerCase().includes(search)) &&
+    (!roleFilter || u.role===roleFilter));
+  users=users.sort(byRoll);
+  const tbody=document.getElementById('usersTableBody');
+  if(users.length===0){ tbody.innerHTML='<tr><td colspan="7" class="empty-row">ไม่พบข้อมูลผู้ใช้</td></tr>'; return; }
+  tbody.innerHTML=users.map(u=>
+    '<tr><td>'+((u.role==='student'||u.role==='admin')?(u.rollNumber||'-'):'-')+'</td><td>'+u.id+'</td><td>'+u.name+'</td>'+
+    '<td><span class="badge badge-blue">'+roleLabels[u.role]+'</span></td><td>'+(u.room||'-')+'</td>'+
+    '<td>'+(u.active===false?'<span class="badge badge-red">ปิดใช้งาน</span>':'<span class="badge badge-green">ใช้งานอยู่</span>')+'</td>'+
+    '<td><button class="btn btn-ghost btn-sm" onclick="openUserModal(\''+u.id+'\')">แก้ไข</button> '+
+    '<button class="btn btn-ghost btn-sm" onclick="resetUserPassword(\''+u.id+'\')">รีเซ็ตรหัสผ่าน</button> '+
+    '<button class="btn btn-ghost btn-sm" onclick="toggleUserActive(\''+u.id+'\')">'+(u.active===false?'เปิดใช้งาน':'ปิดใช้งาน')+'</button> '+
+    '<button class="btn btn-danger btn-sm" onclick="deleteUser(\''+u.id+'\')">ลบ</button></td></tr>').join('');
+}
+document.getElementById('userSearch').addEventListener('input', renderUsers);
+document.getElementById('userRoleFilter').addEventListener('change', renderUsers);
+
+function toggleRoomField(){
+  const role=document.getElementById('userForm_role').value;
+  const showFields = (role==='student' || role==='admin');
+  document.getElementById('roomField').style.display = showFields ? 'block':'none';
+  document.getElementById('rollField').style.display = showFields ? 'block':'none';
+  document.querySelector('#roomField label').textContent = role==='admin' ? 'ห้องเรียน (ไม่บังคับ)' : 'ห้องเรียน';
+  document.querySelector('#rollField label').textContent = role==='admin' ? 'เลขที่ (ไม่บังคับ)' : 'เลขที่ (เฉพาะนักเรียน)';
+}
+function openUserModal(id){
+  document.getElementById('userModalError').classList.remove('show');
+  document.getElementById('userEditId').value=id||'';
+  if(id){
+    const u=getUsers().find(x=>x.id===id);
+    document.getElementById('userModalTitle').textContent='แก้ไขผู้ใช้';
+    document.getElementById('userForm_role').value=u.role;
+    document.getElementById('userForm_id').value=u.id;
+    document.getElementById('userForm_id').disabled=true;
+    document.getElementById('userForm_name').value=u.name;
+    document.getElementById('userForm_room').value=u.room||'';
+    document.getElementById('userForm_roll').value=u.rollNumber||'';
+  } else {
+    document.getElementById('userModalTitle').textContent='เพิ่มผู้ใช้';
+    document.getElementById('userForm_role').value='student';
+    document.getElementById('userForm_id').value=''; document.getElementById('userForm_id').disabled=false;
+    document.getElementById('userForm_name').value=''; document.getElementById('userForm_room').value=''; document.getElementById('userForm_roll').value='';
+  }
+  toggleRoomField();
+  openModal('userModal');
+}
+function submitUserForm(){
+  const editId=document.getElementById('userEditId').value;
+  const role=document.getElementById('userForm_role').value;
+  const id=document.getElementById('userForm_id').value.trim();
+  const name=document.getElementById('userForm_name').value.trim();
+  const room=document.getElementById('userForm_room').value.trim();
+  const roll=document.getElementById('userForm_roll').value.trim();
+  const errEl=document.getElementById('userModalError');
+  const fail=m=>{errEl.textContent=m; errEl.classList.add('show');};
+  if(!id||!name) return fail('กรุณากรอกรหัสประจำตัวและชื่อให้ครบ');
+  if(role==='student' && !room) return fail('กรุณากรอกห้องเรียนสำหรับนักเรียน');
+
+  const keepsRoomRoll = (role==='student' || role==='admin');
+  let users=getUsers();
+  if(editId){
+    const idx=users.findIndex(u=>u.id===editId);
+    users[idx].name=name; users[idx].role=role;
+    users[idx].room=keepsRoomRoll?room:'';
+    users[idx].rollNumber=keepsRoomRoll?roll:'';
+    saveUsers(users); toast('แก้ไขผู้ใช้สำเร็จ','success');
+  } else {
+    if(users.some(u=>u.id===id)) return fail('รหัสประจำตัวนี้มีอยู่ในระบบแล้ว');
+    users.push({id,password:'1234',role,name,room:keepsRoomRoll?room:'',rollNumber:keepsRoomRoll?roll:'',active:true,mustChangePassword:true});
+    saveUsers(users); toast('เพิ่มผู้ใช้สำเร็จ','success');
+  }
+  closeModal('userModal'); renderUsers();
+}
+function resetUserPassword(id){
+  if(!confirm('รีเซ็ตรหัสผ่านของ '+id+' เป็น 1234 ?')) return;
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===id);
+  users[idx].password='1234'; users[idx].mustChangePassword=true; saveUsers(users);
+  toast('รีเซ็ตรหัสผ่านสำเร็จ','success'); renderUsers();
+}
+function toggleUserActive(id){
+  const users=getUsers(); const idx=users.findIndex(u=>u.id===id);
+  users[idx].active = users[idx].active===false ? true : false;
+  saveUsers(users); toast('อัปเดตสถานะบัญชีสำเร็จ','success'); renderUsers();
+}
+function deleteUser(id){
+  const users=getUsers();
+  const target=users.find(u=>u.id===id);
+  if(target.role==='admin' && users.filter(u=>u.role==='admin').length<=1){
+    toast('ไม่สามารถลบผู้ดูแลระบบคนสุดท้ายได้ กรุณาเพิ่มผู้ดูแลระบบอีกคนก่อนลบบัญชีนี้','error'); return;
+  }
+  if(!confirm('ยืนยันการลบผู้ใช้ '+id+' ?')) return;
+  saveUsers(users.filter(u=>u.id!==id));
+  const subs=getSubjects().map(s=>Object.assign({},s,{teacherIds:(s.teacherIds||[]).filter(x=>x!==id), headIds:(s.headIds||[]).filter(x=>x!==id)}));
+  saveSubjects(subs);
+  const tasks=getTasks().map(t=>Object.assign({},t,{studentIds:(t.studentIds||[]).filter(x=>x!==id)}));
+  saveTasks(tasks);
+  saveSubmissions(getSubmissions().filter(s=>s.studentId!==id));
+  toast('ลบผู้ใช้สำเร็จ','success'); renderUsers();
+}
+
+/* ===================== SUBJECTS (admin) ===================== */
+function renderTeacherHeadChecklists(selectedTeacherIds, selectedHeadIds){
+  const teachers=getUsers().filter(u=>u.role==='teacher').sort((a,b)=>a.name.localeCompare(b.name,'th'));
+  const students=getUsers().filter(u=>u.role==='student').sort(byRoll);
+  const tEl=document.getElementById('subjectForm_teacherList');
+  tEl.innerHTML = teachers.length ? teachers.map(t=>
+    '<label><input type="checkbox" value="'+t.id+'" '+(selectedTeacherIds.includes(t.id)?'checked':'')+'> '+t.name+' ('+t.id+')</label>').join('')
+    : '<div class="empty">ยังไม่มีครูผู้สอนในระบบ</div>';
+  const hEl=document.getElementById('subjectForm_headList');
+  hEl.innerHTML = students.length ? students.map(s=>
+    '<label><input type="checkbox" value="'+s.id+'" '+(selectedHeadIds.includes(s.id)?'checked':'')+'> เลขที่ '+(s.rollNumber||'-')+' '+s.name+' ('+(s.room||'-')+')</label>').join('')
+    : '<div class="empty">ยังไม่มีนักเรียนในระบบ</div>';
+}
+function renderSubjects(){
+  const search=(document.getElementById('subjectSearch').value||'').toLowerCase();
+  const subs=getSubjects().filter(s=>s.name.toLowerCase().includes(search));
+  const tbody=document.getElementById('subjectsTableBody');
+  if(subs.length===0){ tbody.innerHTML='<tr><td colspan="7" class="empty-row">ยังไม่มีรายวิชา</td></tr>'; return; }
+  tbody.innerHTML=subs.map(s=>
+    '<tr><td>'+s.name+'</td><td>'+namesForIds(s.teacherIds)+'</td><td>'+namesForIds(s.headIds)+'</td>'+
+    '<td>'+(s.room||'-')+'</td><td>'+(s.term||'-')+'</td>'+
+    '<td>'+(s.active===false?'<span class="badge badge-red">ปิด</span>':'<span class="badge badge-green">เปิด</span>')+'</td>'+
+    '<td><button class="btn btn-ghost btn-sm" onclick="openSubjectModal(\''+s.id+'\')">แก้ไข</button> '+
+    '<button class="btn btn-ghost btn-sm" onclick="toggleSubjectActive(\''+s.id+'\')">'+(s.active===false?'เปิดวิชา':'ปิดวิชา')+'</button> '+
+    '<button class="btn btn-danger btn-sm" onclick="deleteSubject(\''+s.id+'\')">ลบ</button></td></tr>').join('');
+}
+document.getElementById('subjectSearch').addEventListener('input', renderSubjects);
+
+function openSubjectModal(id){
+  document.getElementById('subjectModalError').classList.remove('show');
+  document.getElementById('subjectEditId').value=id||'';
+  if(id){
+    const s=getSubjects().find(x=>x.id===id);
+    document.getElementById('subjectModalTitle').textContent='แก้ไขวิชา';
+    document.getElementById('subjectForm_name').value=s.name;
+    document.getElementById('subjectForm_room').value=s.room||'';
+    document.getElementById('subjectForm_term').value=s.term||'';
+    renderTeacherHeadChecklists(s.teacherIds||[], s.headIds||[]);
+  } else {
+    document.getElementById('subjectModalTitle').textContent='เพิ่มวิชา';
+    document.getElementById('subjectForm_name').value=''; document.getElementById('subjectForm_room').value=''; document.getElementById('subjectForm_term').value='';
+    renderTeacherHeadChecklists([],[]);
+  }
+  openModal('subjectModal');
+}
+function submitSubjectForm(){
+  const editId=document.getElementById('subjectEditId').value;
+  const name=document.getElementById('subjectForm_name').value.trim();
+  const room=document.getElementById('subjectForm_room').value.trim();
+  const term=document.getElementById('subjectForm_term').value.trim();
+  const teacherIds=[].slice.call(document.querySelectorAll('#subjectForm_teacherList input:checked')).map(el=>el.value);
+  const headIds=[].slice.call(document.querySelectorAll('#subjectForm_headList input:checked')).map(el=>el.value);
+  const errEl=document.getElementById('subjectModalError');
+  const fail=m=>{errEl.textContent=m; errEl.classList.add('show');};
+  if(!name) return fail('กรุณากรอกชื่อวิชา');
+
+  let subs=getSubjects();
+  if(editId){
+    const idx=subs.findIndex(s=>s.id===editId);
+    Object.assign(subs[idx],{name,room,term,teacherIds,headIds});
+    saveSubjects(subs); toast('แก้ไขวิชาสำเร็จ','success');
+  } else {
+    subs.push({id:uid('sub'),name,room,term,teacherIds,headIds,active:true});
+    saveSubjects(subs); toast('เพิ่มวิชาสำเร็จ','success');
+  }
+  closeModal('subjectModal'); renderSubjects();
+}
+function toggleSubjectActive(id){
+  const subs=getSubjects(); const idx=subs.findIndex(s=>s.id===id);
+  subs[idx].active = subs[idx].active===false ? true : false;
+  saveSubjects(subs); toast('อัปเดตสถานะวิชาสำเร็จ','success'); renderSubjects();
+}
+function deleteSubject(id){
+  if(!confirm('ยืนยันการลบวิชานี้? งานที่เกี่ยวข้องจะถูกลบด้วย')) return;
+  saveSubjects(getSubjects().filter(s=>s.id!==id));
+  const removedTaskIds=getTasks().filter(t=>t.subjectId===id).map(t=>t.id);
+  saveTasks(getTasks().filter(t=>t.subjectId!==id));
+  saveSubmissions(getSubmissions().filter(s=>removedTaskIds.indexOf(s.taskId)===-1));
+  toast('ลบวิชาสำเร็จ','success'); renderSubjects();
+}
+
+/* ===================== TASKS (admin / teacher / head) ===================== */
+function renderTasks(){
+  const scope=subjectsForCurrentUser();
+  const scopeIds=scope.map(s=>s.id);
+  document.getElementById('tasksTitle').textContent = isAdminLike(CURRENT_USER.role) ? 'จัดการงานค้าง' : 'จัดการงานค้าง (หัวหน้าวิชา)';
+
+  const subSel=document.getElementById('taskSubjectFilter');
+  subSel.innerHTML='<option value="">ทุกวิชา</option>'+scope.map(s=>'<option value="'+s.id+'">'+s.name+'</option>').join('');
+  const filterVal=subSel.value;
+
+  let tasks=tasksForSubjectIds(scopeIds);
+  if(filterVal) tasks=tasks.filter(t=>t.subjectId===filterVal);
+
+  const tbody=document.getElementById('tasksTableBody');
+  if(scope.length===0){ tbody.innerHTML='<tr><td colspan="7" class="empty-row">ยังไม่มีวิชาที่รับผิดชอบ</td></tr>'; return; }
+  if(tasks.length===0){ tbody.innerHTML='<tr><td colspan="7" class="empty-row">ยังไม่มีงานที่มอบหมาย</td></tr>'; return; }
+
+  tbody.innerHTML=tasks.map(t=>{
+    const sub=subjectById(t.subjectId);
+    const sids=t.studentIds||[];
+    const approvedCount=sids.filter(sid=>statusInfo(getSubmission(t.id,sid)).key==='approved').length;
+    return '<tr><td>'+(sub?sub.name:'-')+'</td><td>'+(sub?(sub.room||'-'):'-')+'</td><td>'+t.title+'</td><td>'+t.dueDate+'</td>'+
+      '<td>'+sids.length+' คน</td><td>'+approvedCount+'/'+sids.length+'</td>'+
+      '<td><button class="btn btn-ghost btn-sm" onclick="openReviewModal(\''+t.id+'\')">ตรวจสอบ</button> '+
+      '<button class="btn btn-ghost btn-sm" onclick="openTaskModal(\''+t.id+'\')">แก้ไข</button> '+
+      '<button class="btn btn-danger btn-sm" onclick="deleteTask(\''+t.id+'\')">ลบ</button></td></tr>';
+  }).join('');
+}
+document.getElementById('taskSubjectFilter').addEventListener('change', renderTasks);
+
+function renderTaskStudentChecklist(preselectedIds){
+  const subjectId=document.getElementById('taskForm_subject').value;
+  const sub=subjectById(subjectId);
+  const el=document.getElementById('taskForm_studentList');
+  if(!sub){ el.innerHTML='<div class="empty">กรุณาเลือกวิชาก่อน</div>'; return; }
+  const students=studentsInRoom(sub.room);
+  const pre = preselectedIds || [];
+  el.innerHTML = students.length ? students.map(s=>
+    '<label data-search="'+(s.name+' '+s.id+' '+(s.room||'')).toLowerCase()+'"><input type="checkbox" value="'+s.id+'" '+(pre.indexOf(s.id)!==-1?'checked':'')+'> เลขที่ '+(s.rollNumber||'-')+' '+s.name+' ('+(s.room||'-')+')'+(s.role==='admin'?' <span class="badge badge-blue">ผู้ดูแลระบบ</span>':'')+'</label>').join('')
+    : '<div class="empty">ยังไม่มีนักเรียน/ผู้ดูแลระบบในระบบ</div>';
+}
+function filterTaskStudentChecklist(){
+  const q=(document.getElementById('taskForm_studentFilter').value||'').toLowerCase();
+  document.querySelectorAll('#taskForm_studentList label').forEach(lbl=>{
+    lbl.style.display = lbl.dataset.search.indexOf(q)!==-1 ? 'flex' : 'none';
+  });
+}
+function openTaskModal(id){
+  document.getElementById('taskModalError').classList.remove('show');
+  document.getElementById('taskEditId').value=id||'';
+  const scope=subjectsForCurrentUser();
+  if(scope.length===0){ toast('ยังไม่มีวิชาที่รับผิดชอบ กรุณาติดต่อผู้ดูแลระบบ','error'); return; }
+  document.getElementById('taskForm_subject').innerHTML=scope.map(s=>'<option value="'+s.id+'">'+s.name+' ('+(s.room||'-')+')</option>').join('');
+  document.getElementById('taskForm_studentFilter').value='';
+  if(id){
+    const t=getTasks().find(x=>x.id===id);
+    document.getElementById('taskModalTitle').textContent='แก้ไขงานค้าง';
+    document.getElementById('taskForm_subject').value=t.subjectId;
+    document.getElementById('taskForm_title').value=t.title;
+    document.getElementById('taskForm_details').value=t.details||'';
+    document.getElementById('taskForm_due').value=t.dueDate;
+    renderTaskStudentChecklist(t.studentIds||[]);
+  } else {
+    document.getElementById('taskModalTitle').textContent='มอบงานค้าง';
+    document.getElementById('taskForm_title').value=''; document.getElementById('taskForm_details').value=''; document.getElementById('taskForm_due').value='';
+    renderTaskStudentChecklist();
+  }
+  openModal('taskModal');
+}
+function submitTaskForm(){
+  const editId=document.getElementById('taskEditId').value;
+  const subjectId=document.getElementById('taskForm_subject').value;
+  const title=document.getElementById('taskForm_title').value.trim();
+  const details=document.getElementById('taskForm_details').value.trim();
+  const due=document.getElementById('taskForm_due').value;
+  const studentIds=[].slice.call(document.querySelectorAll('#taskForm_studentList input:checked')).map(el=>el.value);
+  const errEl=document.getElementById('taskModalError');
+  const fail=m=>{errEl.textContent=m; errEl.classList.add('show');};
+  if(!subjectId||!title||!due) return fail('กรุณากรอกข้อมูลให้ครบถ้วน');
+  if(studentIds.length===0) return fail('กรุณาเลือกนักเรียนอย่างน้อย 1 คน');
+
+  let tasks=getTasks();
+  if(editId){
+    const idx=tasks.findIndex(t=>t.id===editId);
+    Object.assign(tasks[idx],{subjectId,title,details,dueDate:due,studentIds});
+    saveTasks(tasks); toast('แก้ไขงานค้างสำเร็จ','success');
+  } else {
+    tasks.push({id:uid('task'),subjectId,title,details,dueDate:due,createdDate:new Date().toISOString().slice(0,10),studentIds});
+    saveTasks(tasks); toast('มอบงานค้างสำเร็จ','success');
+  }
+  closeModal('taskModal'); renderTasks();
+}
+function deleteTask(id){
+  if(!confirm('ยืนยันการลบงานนี้?')) return;
+  saveTasks(getTasks().filter(t=>t.id!==id));
+  saveSubmissions(getSubmissions().filter(s=>s.taskId!==id));
+  toast('ลบงานสำเร็จ','success'); renderTasks();
+}
+
+/* ===================== REVIEW (teacher / head / admin) ===================== */
+function openReviewModal(taskId){
+  const t=getTasks().find(x=>x.id===taskId);
+  const sub=subjectById(t.subjectId);
+  document.getElementById('reviewModalTitle').textContent='ตรวจสอบ: '+t.title+' ('+(sub?sub.name:'-')+')';
+  renderReviewList(taskId);
+  openModal('reviewModal');
+}
+function renderReviewList(taskId){
+  const t=getTasks().find(x=>x.id===taskId);
+  let students=(t.studentIds||[]).map(id=>getUsers().find(u=>u.id===id)).filter(Boolean).sort(byRoll);
+  const headOnlyUnsubmitted = CURRENT_USER.role==='student';
+  if(headOnlyUnsubmitted){
+    students=students.filter(s=>statusInfo(getSubmission(taskId,s.id)).key!=='approved');
+  }
+  const el=document.getElementById('reviewList');
+  if(students.length===0){ el.innerHTML='<p style="color:var(--gray-text);font-size:13px;">'+(headOnlyUnsubmitted?'ทุกคนส่งงานแล้ว':'ไม่มีนักเรียนในงานนี้')+'</p>'; return; }
+  el.innerHTML=students.map(s=>{
+    const sub=getSubmission(taskId,s.id);
+    const info=statusInfo(sub);
+    return '<div class="review-row"><div class="who">เลขที่ '+(s.rollNumber||'-')+' '+s.name+'<span class="sub">'+s.id+' • '+(sub&&sub.submittedDate?('ส่งเมื่อ '+sub.submittedDate):'ยังไม่ได้ส่ง')+'</span></div>'+
+      '<div class="review-actions"><span class="badge '+info.badge+'">'+info.label+'</span>'+
+      '<button class="btn btn-success btn-sm" onclick="reviewDecision(\''+taskId+'\',\''+s.id+'\',\'approved\')">✅ ส่งแล้ว</button>'+
+      '<button class="btn btn-danger btn-sm" onclick="reviewDecision(\''+taskId+'\',\''+s.id+'\',\'rejected\')">❌ ยังไม่ส่ง/ส่งไม่ผ่าน</button></div></div>';
+  }).join('');
+}
+function reviewDecision(taskId, studentId, decision){
+  let subms=getSubmissions();
+  let sub=subms.find(x=>x.taskId===taskId && x.studentId===studentId);
+  if(!sub){
+    sub={id:uid('sub'),taskId:taskId,studentId:studentId,submittedDate:new Date().toISOString().slice(0,10)};
+    subms.push(sub);
+  }
+  sub.status=decision; sub.reviewedDate=new Date().toISOString().slice(0,10);
+  saveSubmissions(subms);
+  toast(decision==='approved'?'ยืนยันว่าส่งงานแล้ว':'บันทึกว่ายังไม่ส่งงาน/ส่งไม่ผ่าน','success');
+  renderReviewList(taskId); renderTasks();
+}
+
+/* ===================== TRACKING ===================== */
+function renderTracking(){
+  const role=CURRENT_USER.role;
+  const scope = subjectsForCurrentUser();
+  const scopeIds=scope.map(s=>s.id);
+  const headOnlyUnsubmitted = role==='student';
+
+  const subSel=document.getElementById('trackSubjectFilter');
+  subSel.innerHTML='<option value="">ทุกวิชา</option>'+scope.map(s=>'<option value="'+s.id+'">'+s.name+'</option>').join('');
+  const subFilter=subSel.value;
+  const roomFilter=(document.getElementById('trackRoomFilter').value||'').toLowerCase();
+
+  let tasks=tasksForSubjectIds(scopeIds);
+  if(subFilter) tasks=tasks.filter(t=>t.subjectId===subFilter);
+
+  let rows=[];
+  tasks.forEach(t=>{
+    const sub=subjectById(t.subjectId);
+    if(roomFilter && (sub?(sub.room||''):'').toLowerCase().indexOf(roomFilter)===-1) return;
+    let students=(t.studentIds||[]).map(id=>getUsers().find(u=>u.id===id)).filter(Boolean).sort(byRoll);
+    if(headOnlyUnsubmitted){
+      students=students.filter(s=>statusInfo(getSubmission(t.id,s.id)).key!=='approved');
+    }
+    students.forEach(s=>{
+      const info=statusInfo(getSubmission(t.id,s.id));
+      const daysLeft=Math.ceil((new Date(t.dueDate)-new Date())/86400000);
+      rows.push({roll:s.rollNumber||'-',studentId:s.id,name:s.name,room:s.room,subject:sub?sub.name:'-',task:t.title,due:t.dueDate,daysLeft:daysLeft,info:info});
+    });
+  });
+
+  const total=rows.length, approved=rows.filter(r=>r.info.key==='approved').length;
+  const pendingReview=rows.filter(r=>r.info.key==='pending_review').length;
+  const pending=rows.filter(r=>r.info.key==='pending_work'||r.info.key==='rejected').length;
+  document.getElementById('trackingStats').innerHTML=[
+    ['งานทั้งหมด(รายบุคคล)',total],['ส่งแล้ว',approved],['รอตรวจสอบ',pendingReview],['ค้าง',pending]
+  ].map(([lbl,num])=>'<div class="stat-card"><div class="num">'+num+'</div><div class="lbl">'+lbl+'</div></div>').join('');
+
+  const tbody=document.getElementById('trackingTableBody');
+  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="9" class="empty-row">ไม่พบข้อมูล</td></tr>'; return; }
+  tbody.innerHTML=rows.map(r=>
+    '<tr><td>'+r.roll+'</td><td>'+r.studentId+'</td><td>'+r.name+'</td><td>'+r.room+'</td><td>'+r.subject+'</td>'+
+    '<td>'+r.task+'</td><td>'+r.due+'</td><td>'+(r.daysLeft<0?Math.abs(r.daysLeft):'-')+'</td>'+
+    '<td><span class="badge '+r.info.badge+'">'+r.info.label+'</span></td></tr>').join('');
+}
+document.getElementById('trackSubjectFilter').addEventListener('change', renderTracking);
+document.getElementById('trackRoomFilter').addEventListener('input', renderTracking);
+
+/* ===================== SEARCH ===================== */
+function renderSearch(){
+  const q=(document.getElementById('globalSearch').value||'').toLowerCase();
+  const role=CURRENT_USER.role;
+  const scope = subjectsForCurrentUser();
+  const scopeIds=scope.map(s=>s.id);
+  const headOnlyUnsubmitted = role==='student';
+  const tasks=tasksForSubjectIds(scopeIds);
+
+  let rows=[];
+  tasks.forEach(t=>{
+    const sub=subjectById(t.subjectId);
+    let students=(t.studentIds||[]).map(id=>getUsers().find(u=>u.id===id)).filter(Boolean).sort(byRoll);
+    if(headOnlyUnsubmitted){
+      students=students.filter(s=>statusInfo(getSubmission(t.id,s.id)).key!=='approved');
+    }
+    students.forEach(s=>{
+      const info=statusInfo(getSubmission(t.id,s.id));
+      rows.push({roll:s.rollNumber||'-',studentId:s.id,name:s.name,room:s.room,subject:sub?sub.name:'-',
+        teacher:sub?namesForIds(sub.teacherIds):'-', head:sub?namesForIds(sub.headIds):'-', task:t.title, info:info});
+    });
+  });
+  if(q){
+    rows=rows.filter(r=>{
+      return (String(r.roll)+r.studentId+r.name+r.room+r.subject+r.teacher+r.head+r.task+r.info.label).toLowerCase().indexOf(q)!==-1;
+    });
+  }
+  const tbody=document.getElementById('searchTableBody');
+  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="9" class="empty-row">ไม่พบข้อมูลที่ตรงกัน</td></tr>'; return; }
+  tbody.innerHTML=rows.map(r=>
+    '<tr><td>'+r.roll+'</td><td>'+r.studentId+'</td><td>'+r.name+'</td><td>'+r.room+'</td><td>'+r.subject+'</td>'+
+    '<td>'+r.teacher+'</td><td>'+r.head+'</td><td>'+r.task+'</td>'+
+    '<td><span class="badge '+r.info.badge+'">'+r.info.label+'</span></td></tr>').join('');
+}
+document.getElementById('globalSearch').addEventListener('input', renderSearch);
+
+/* ===================== MY TASKS (student) - "ระบบแก้ค้างงาน" ===================== */
+function renderMyTasks(){
+  const me=CURRENT_USER;
+  const tasks=getTasks().filter(t=>(t.studentIds||[]).indexOf(me.id)!==-1);
+  const tbody=document.getElementById('myTasksTableBody');
+  if(tasks.length===0){ tbody.innerHTML='<tr><td colspan="6" class="empty-row">ยังไม่มีงานค้างที่ได้รับมอบหมาย</td></tr>'; }
+  else{
+    tbody.innerHTML=tasks.map(t=>{
+      const sub=subjectById(t.subjectId);
+      const info=statusInfo(getSubmission(t.id,me.id));
+      const canSubmit = info.key==='pending_work' || info.key==='rejected';
+      return '<tr><td>'+(sub?sub.name:'-')+'</td><td>'+t.title+'</td><td>'+(t.details||'-')+'</td><td>'+t.dueDate+'</td>'+
+        '<td><span class="badge '+info.badge+'">'+info.label+'</span></td>'+
+        '<td>'+(canSubmit?'<button class="btn btn-primary btn-sm" onclick="submitMyTask(\''+t.id+'\')">ส่ง</button>':'-')+'</td></tr>';
+    }).join('');
+  }
+  const hist=getSubmissions().filter(s=>s.studentId===me.id);
+  const htbody=document.getElementById('myHistoryTableBody');
+  if(hist.length===0){ htbody.innerHTML='<tr><td colspan="4" class="empty-row">ยังไม่มีประวัติการส่งงาน</td></tr>'; return; }
+  htbody.innerHTML=hist.map(h=>{
+    const t=getTasks().find(x=>x.id===h.taskId); const sub=t?subjectById(t.subjectId):null;
+    const info=statusInfo(h);
+    return '<tr><td>'+(sub?sub.name:'-')+'</td><td>'+(t?t.title:'-')+'</td><td>'+h.submittedDate+'</td>'+
+      '<td><span class="badge '+info.badge+'">'+info.label+'</span></td></tr>';
+  }).join('');
+}
+function submitMyTask(taskId){
+  let subms=getSubmissions();
+  let sub=subms.find(s=>s.taskId===taskId && s.studentId===CURRENT_USER.id);
+  if(sub){ sub.status='pending_review'; sub.submittedDate=new Date().toISOString().slice(0,10); }
+  else{ subms.push({id:uid('sub'),taskId:taskId,studentId:CURRENT_USER.id,status:'pending_review',submittedDate:new Date().toISOString().slice(0,10)}); }
+  saveSubmissions(subms);
+  toast('ส่งงานสำเร็จ สถานะ: รอตรวจสอบ','success'); renderMyTasks();
+}
+
+/* ===================== SETTINGS (admin) ===================== */
+function renderSettings(){ document.getElementById('settingsSchoolName').value=getSettings().schoolName; }
+function saveSchoolName(){
+  const s=getSettings(); s.schoolName=document.getElementById('settingsSchoolName').value.trim()||s.schoolName;
+  saveSettings(s); document.querySelector('.sidebar .brand small').textContent=s.schoolName;
+  toast('บันทึกชื่อโรงเรียนสำเร็จ','success');
+}
+function backupData(){
+  const data={users:getUsers(),subjects:getSubjects(),tasks:getTasks(),submissions:getSubmissions(),settings:getSettings()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='backup_'+Date.now()+'.json'; a.click();
+  toast('สำรองข้อมูลสำเร็จ','success');
+}
+document.getElementById('restoreFile').addEventListener('change', (e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(data.users) saveUsers(data.users);
+      if(data.subjects) saveSubjects(data.subjects);
+      if(data.tasks) saveTasks(data.tasks);
+      if(data.submissions) saveSubmissions(data.submissions);
+      if(data.settings) saveSettings(data.settings);
+      toast('นำเข้าข้อมูลสำเร็จ กำลังโหลดใหม่...','success');
+      setTimeout(()=>location.reload(),1200);
+    }catch(err){ toast('ไฟล์ไม่ถูกต้อง ไม่สามารถนำเข้าข้อมูลได้','error'); }
+  };
+  reader.readAsText(file);
+});
+
+/* ===================== HELP ===================== */
+function renderHelp(){
+  const role=CURRENT_USER.role;
+  let html='';
+  if(isAdminLike(role)){
+    html+=helpBlock('จัดการผู้ใช้','เพิ่ม/แก้ไข/ลบผู้ใช้ รีเซ็ตรหัสผ่านเป็น 1234 และเปิด/ปิดการใช้งานบัญชีได้ที่เมนู "ผู้ใช้งาน" นักเรียนทุกคนต้องมีเลขที่ประจำตัว (ครูผู้สอนมีสิทธิ์เท่ากับผู้ดูแลระบบ)');
+    html+=helpBlock('จัดการรายวิชา','เพิ่มวิชา กำหนดครูผู้สอนและหัวหน้าวิชาได้มากกว่า 1 คนต่อวิชาที่เมนู "รายวิชา" (ไม่บังคับต้องเลือกครูผู้สอน)');
+    html+=helpBlock('จัดการงานค้าง','มอบงานค้างให้วิชาใดก็ได้ในระบบ เลือกนักเรียนที่เกี่ยวข้องได้ที่เมนู "จัดการงานค้าง" และกดปุ่ม "ตรวจสอบ" เพื่อยืนยันว่าใครส่งแล้วหรือยังไม่ส่ง');
+    if(role==='admin'){
+      html+=helpBlock('งานของฉัน (ระบบแก้ค้างงาน)','หากผู้ดูแลระบบได้รับมอบหมายงานค้างจากหัวหน้าวิชา สามารถดูและส่งงานได้ที่เมนู "ระบบแก้ค้างงาน"');
+    }
+    html+=helpBlock('สำรอง/กู้คืนข้อมูล','ไปที่เมนู "ตั้งค่าระบบ" เพื่อสำรองข้อมูลเป็นไฟล์ JSON หรือกู้คืนข้อมูลจากไฟล์ที่เคยสำรองไว้');
+  } else {
+    html+=helpBlock('ระบบแก้ค้างงาน','ดูสถานะงานค้างของตนเองและกดปุ่ม "ส่ง" เพื่อส่งงาน สถานะจะเปลี่ยนเป็น "รอตรวจสอบ" จนกว่าครู/หัวหน้าวิชาจะยืนยัน');
+    if(isHead(CURRENT_USER.id)){
+      html+=helpBlock('จัดการงานค้าง (หัวหน้าวิชา)','มอบงานค้างและเลือกนักเรียนที่เกี่ยวข้องสำหรับวิชาที่ได้รับมอบหมาย ตรวจสอบว่านักเรียนส่งงานแล้วหรือยัง แล้วกดยืนยัน "ส่งแล้ว" หรือ "ยังไม่ส่ง/ส่งไม่ผ่าน"');
+    }
+  }
+  html+=helpBlock('เปลี่ยนรหัสผ่าน','กดไอคอน 🔑 ที่แถบด้านบนเพื่อเปลี่ยนรหัสผ่านของตนเองได้ทุกเมื่อ');
+  document.getElementById('helpContent').innerHTML=html;
+}
+function helpBlock(title,text){ return '<div class="help-block"><h4>'+title+'</h4><p>'+text+'</p></div>'; }
+
+/* ===================== PRINT / EXPORT ===================== */
+function printCurrentTable(tableId, title){
+  const tableHtml=document.getElementById(tableId).outerHTML;
+  const w=window.open('','_blank');
+  w.document.write('<html><head><title>'+title+'</title><style>body{font-family:sans-serif;padding:20px;} table{width:100%;border-collapse:collapse;font-size:12px;} th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;} th{background:#f0f0f0;} h2{margin-bottom:4px;}</style></head><body><h2>'+title+'</h2><p>'+getSettings().schoolName+' &bull; '+new Date().toLocaleString('th-TH')+'</p>'+tableHtml+'</body></html>');
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+}
+function exportCurrentTable(tableId, filename){
+  const table=document.getElementById(tableId);
+  const wb=XLSX.utils.table_to_book(table, {sheet:'Report'});
+  XLSX.writeFile(wb, filename+'.xlsx');
+}
+</script>
+</body>
+</html>

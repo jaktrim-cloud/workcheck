@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "workcheck",
+  "compatibility_date": "2026-07-14",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "school-system - Copy"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
